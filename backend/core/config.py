@@ -1,6 +1,4 @@
 import os
-from pathlib import Path
-
 from pydantic_settings import BaseSettings
 from typing import Optional
 
@@ -11,8 +9,6 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
-    # HuggingFace Spaces 只有 /data 和 /tmp 可写
-    # 本地开发时使用 ./data.db，HuggingFace 使用 /data/data.db
     DATABASE_URL: str = "sqlite:///./data.db"
 
     # Email settings
@@ -32,7 +28,6 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# HuggingFace Spaces: /data 目录可写，/app 只读
-# 如果 /data 目录存在，强制使用 /data/data.db
+# 适配 Hugging Face Spaces：如果 /data 目录存在，则数据库写入 /data
 if os.path.isdir("/data"):
     settings.DATABASE_URL = "sqlite:////data/data.db"
