@@ -1,73 +1,153 @@
----
-title: 全自动签到助手
-emoji: 🤖
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-app_port: 7860
----
+# 全自动签到助手
 
-# 全自动助手
-
-多网站多账号自动签到平台 — 一次配置，自动签到。
-
-## 简介
-
-全自动助手（Auto-Sign）是一个开源的自动签到平台。你可以：
-
-- 在界面中添加要签到的网站和账号
-- 设置定时任务（Cron 表达式）
-- 系统到时间自动完成签到
-- 签到结果记录在日志中，失败时可邮件/企业微信通知
-- 可部署在电脑、服务器、甚至安卓手机上
-
----
-
-## 技术栈
-
-| 层级 | 技术 |
-|------|------|
-| **后端** | Python 3.11 + FastAPI + SQLAlchemy + APScheduler |
-| **前端** | Vue 3 + TypeScript + Element Plus + Pinia + Vue Router + Vite |
-| **数据库** | SQLite（单文件，无需单独部署） |
-| **签到引擎** | 自定义 API 插件（urllib） |
-
----
+> 一站式多站点自动签到管理系统，支持自定义 API 签到、邮件/企业微信通知、定时任务调度。
 
 ## 功能特性
 
-- 用户系统 — 注册、登录、JWT 认证
-- 网站管理 — 添加/编辑/删除网站，支持多种网站类型
-- 账号管理 — 添加账号、支持用户名密码/Token/Cookie
-- 定时任务 — Cron 表达式调度，灵活设置签到时间
-- 签到日志 — 查看每次签到结果，支持筛选和删除
-- 邮件通知 — 签到失败自动发邮件提醒
-- 企业微信机器人通知 — webhook 方式推送签到结果
-- JSON 配置导入 — 从 AI 输出或他人模板直接粘贴导入
-- 插件系统 — 支持自定义 Python 签到脚本
+- **多站点管理** — 支持自定义添加站点，内置常用站点预设（荔枝鱼、哈基米API、binmt论坛等）
+- **自定义分类** — 站点按分类分组管理，支持自定义添加/删除分类
+- **自动签到** — 基于 APScheduler 定时任务调度，支持 Cron 表达式自定义频率
+- **通用签到引擎** — 支持登录→提取Token→签到完整流程，兼容 JSON/Form/Cookie 多种认证方式
+- **Cookie 心跳** — 自动刷新登录 Cookie，防止会话过期
+- **消息通知** — 邮件 + 企业微信机器人通知，支持自定义消息模板
+- **定时状态报告** — 自定义间隔发送系统运行状态摘要
+- **AI 配置生成** — 输入网站地址自动探测 API 接口，生成可导入的配置
+- **多语言** — 支持中文/English/日本語 切换
+- **响应式设计** — 手机/平板/桌面全适配
+- **日志管理** — 签到日志查看、详情、CSV 导出
 
----
+## 技术栈
+
+### 后端
+- FastAPI + Uvicorn
+- SQLAlchemy + SQLite
+- APScheduler 定时调度
+- httpx 异步 HTTP 客户端
+- python-jose JWT 认证
+- aiosmtplib 邮件发送
+
+### 前端
+- Vue 3 + TypeScript
+- Pinia 状态管理
+- Element Plus UI 组件库
+- Vue Router
+- Vite 构建
+- TailwindCSS
+
+## 快速开始
+
+### 本地部署
+
+```bash
+# 1. 克隆仓库
+git clone https://github.com/zhangguoguo1314/quan-zidong-zhushou.git
+cd quan-zidong-zhushou
+
+# 2. 安装后端依赖
+cd backend
+pip install -r requirements.txt
+
+# 3. 启动后端
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# 4. 安装前端依赖（开发模式）
+cd ../frontend
+npm install
+npm run dev
+```
+
+访问 http://localhost:8000（生产模式，前端已内置到 static 目录）
+或 http://localhost:5173（开发模式，热更新）
+
+### Docker 部署
+
+```bash
+docker build -t auto-signin .
+docker run -d -p 7860:7860 auto-signin
+```
+
+### Hugging Face Spaces 部署
+
+项目已适配 Hugging Face Spaces，直接推送到仓库即可自动部署。
+
+## 内置站点预设
+
+| 站点 | 分类 | 认证方式 |
+|------|------|----------|
+| 荔枝鱼公益站 | 公益站点 | Bearer Token |
+| 哈基米API站 | API服务 | Session Cookie + Header |
+| binmt论坛 | 论坛社区 | Discuz Cookie |
 
 ## API 接口
 
-后端启动后，访问 `/docs` 查看完整的 Swagger API 文档。
-
-主要接口：
-
-| 路径 | 方法 | 说明 |
+| 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/auth/register` | POST | 用户注册 |
-| `/api/auth/login` | POST | 用户登录（返回 JWT token） |
-| `/api/sites` | GET/POST | 网站列表/添加网站 |
-| `/api/sites/{id}/signin` | POST | 手动签到 |
-| `/api/accounts` | GET/POST | 账号列表/添加账号 |
-| `/api/tasks` | GET/POST | 任务列表/添加定时任务 |
-| `/api/logs` | GET/DELETE | 签到日志/删除日志 |
-| `/api/settings` | GET/PUT | 用户设置 |
-| `/api/health` | GET | 健康检查 |
+| /api/health | GET | 健康检查 |
+| /api/auth/register | POST | 用户注册 |
+| /api/auth/login | POST | 用户登录 |
+| /api/auth/me | GET | 获取当前用户 |
+| /api/sites | GET/POST | 站点列表/创建 |
+| /api/sites/categories | GET/POST | 分类管理 |
+| /api/sites/grouped | GET | 按分类分组 |
+| /api/accounts | GET/POST | 账号管理 |
+| /api/tasks | GET/POST | 任务管理 |
+| /api/tasks/{id}/run | POST | 手动执行任务 |
+| /api/logs | GET | 签到日志 |
+| /api/logs/export | GET | 导出日志 CSV |
+| /api/logs/{id} | GET | 日志详情 |
+| /api/settings | GET/PUT | 系统设置 |
+| /api/settings/templates/defaults | GET | 默认消息模板 |
+| /api/settings/templates/preview | POST | 模板预览 |
+| /api/settings/send-status-report | POST | 发送状态报告 |
+| /api/config-generator/probe | POST | AI 探测站点配置 |
 
----
+## 消息模板变量
 
-## 许可证
+签到通知支持以下占位符变量：
 
-MIT License — 可自由使用、修改、分发。
+| 变量 | 说明 |
+|------|------|
+| {site_name} | 站点名称 |
+| {account_name} | 账号名称 |
+| {status} | 签到状态 |
+| {message} | 签到消息 |
+| {time} | 当前时间 |
+| {error} | 错误信息 |
+| {success_count} | 成功次数 |
+| {fail_count} | 失败次数 |
+| {total_sites} | 总站点数 |
+| {total_accounts} | 总账号数 |
+
+## 项目结构
+
+```
+├── backend/
+│   ├── main.py              # FastAPI 入口
+│   ├── core/                # 配置、安全、数据库
+│   ├── models/              # SQLAlchemy 模型
+│   ├── schemas/             # Pydantic Schema
+│   ├── api/routes/          # API 路由
+│   ├── services/            # 业务服务
+│   │   ├── signin_executor.py   # 签到执行引擎
+│   │   ├── config_generator.py  # AI 配置生成器
+│   │   ├── notification.py      # 通知服务
+│   │   ├── wechat_bot.py        # 企业微信机器人
+│   │   └── message_template.py  # 消息模板引擎
+│   ├── tasks/               # 定时任务
+│   │   └── scheduler.py     # APScheduler 调度器
+│   └── static/              # 前端构建产物
+├── frontend/
+│   ├── src/
+│   │   ├── pages/           # 页面组件
+│   │   ├── stores/          # Pinia Store
+│   │   ├── api/             # API 封装
+│   │   ├── i18n/            # 国际化
+│   │   └── router/          # 路由配置
+│   └── vite.config.ts
+├── Dockerfile
+└── README.md
+```
+
+## License
+
+MIT
