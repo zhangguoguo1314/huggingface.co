@@ -1,6 +1,7 @@
-from typing import Dict, Any
-from playwright.async_api import Page
+from typing import Dict, Any, TYPE_CHECKING
 from plugins.base import BasePlugin
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class CustomPlugin(BasePlugin):
