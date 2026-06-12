@@ -10,7 +10,7 @@ COPY frontend/ ./
 RUN npm run build
 
 
-# 阶段 2: 构建后端镜像（无需 Playwright/Chrome，使用自定义 API 模式）
+# 阶段 2: 构建后端镜像
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -30,12 +30,12 @@ COPY backend/ .
 # 复制前端构建产物到 backend/static
 COPY --from=frontend-builder /app/frontend/dist ./static
 
-RUN mkdir -p /app/data
-
 EXPOSE 7860
 
-ENV DATABASE_URL=sqlite:///app/data/data.db
 ENV HOST=0.0.0.0
 ENV PORT=7860
+
+# 数据库自动存到 /data/data.db（HuggingFace Spaces 可写目录）
+# 由 core/config.py 自动检测 /data 目录
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
