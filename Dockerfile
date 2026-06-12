@@ -32,10 +32,10 @@ COPY --from=frontend-builder /app/frontend/dist ./static
 
 RUN mkdir -p /app/data
 
-EXPOSE 8000
+EXPOSE 7860
 
 ENV DATABASE_URL=sqlite:///app/data/data.db
 ENV HOST=0.0.0.0
-ENV PORT=8000
+ENV PORT=7860
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
