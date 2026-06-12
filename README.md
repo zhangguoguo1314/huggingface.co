@@ -1,3 +1,13 @@
+---
+title: 全自动签到助手
+emoji: 🔄
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_file: main.py
+pinned: false
+---
+
 # 全自动签到助手
 
 > 一站式多站点自动签到管理系统，支持自定义 API 签到、邮件/企业微信通知、定时任务调度。
