@@ -1,7 +1,6 @@
-from typing import Dict, Any, TYPE_CHECKING
+from typing import Dict, Any
+from playwright.async_api import Page
 from plugins.base import BasePlugin
-if TYPE_CHECKING:
-    from playwright.async_api import Page
 
 
 class OpenRouterPlugin(BasePlugin):

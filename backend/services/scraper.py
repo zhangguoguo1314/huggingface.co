@@ -60,7 +60,7 @@ class ScraperService:
             await page.click('button[type="submit"]')
             await page.wait_for_timeout(2000)
 
-            cookies = await page.context.cookies()
+            cookies = await context.cookies()
             account.cookie = self._serialize_cookies(cookies)
 
             return {"success": True, "message": "Signed in successfully"}
