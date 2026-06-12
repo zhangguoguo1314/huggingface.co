@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>自动签到测试面板</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+.header { background: #1e293b; padding: 16px 24px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 20px; color: #38bdf8; }
+.header .status { font-size: 13px; padding: 4px 12px; border-radius: 20px; }
+.status-ok { background: #064e3b; color: #34d399; }
+.status-err { background: #7f1d1d; color: #fca5a5; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+.grid { display: grid; grid-template-columns: 340px 1fr; gap: 20px; }
+.card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+.card h2 { font-size: 15px; color: #94a3b8; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #334155; }
+label { display: block; font-size: 13px; color: #94a3b8; margin-bottom: 4px; }
+input, select, textarea { width: 100%; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; padding: 8px 12px; border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #38bdf8; }
+.btn { padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+.btn-primary { background: #2563eb; color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-success { background: #059669; color: white; }
+.btn-success:hover { background: #047857; }
+.btn-danger { background: #dc2626; color: white; }
+.btn-danger:hover { background: #b91c1c; }
+.btn-warning { background: #d97706; color: white; }
+.btn-warning:hover { background: #b45309; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-group { display: flex; gap: 8px; margin-top: 12px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.log-area { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; max-height: 500px; overflow-y: auto; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 12px; line-height: 1.8; }
+.log-entry { padding: 2px 0; border-bottom: 1px solid #1e293b; }
+.log-success { color: #34d399; }
+.log-fail { color: #fca5a5; }
+.log-info { color: #38bdf8; }
+.log-warn { color: #fbbf24; }
+.log-time { color: #64748b; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: #1e293b; border-radius: 10px; padding: 16px; border: 1px solid #334155; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; }
+.stat-label { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+.stat-success .stat-num { color: #34d399; }
+.stat-fail .stat-num { color: #fca5a5; }
+.stat-total .stat-num { color: #38bdf8; }
+.stat-auto .stat-num { color: #fbbf24; }
+.table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.table th { text-align: left; padding: 8px 12px; background: #0f172a; color: #94a3b8; font-weight: 600; border-bottom: 1px solid #334155; }
+.table td { padding: 8px 12px; border-bottom: 1px solid #1e293b; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.badge-success { background: #064e3b; color: #34d399; }
+.badge-fail { background: #7f1d1d; color: #fca5a5; }
+.badge-auto { background: #78350f; color: #fbbf24; }
+.badge-manual { background: #1e3a5f; color: #38bdf8; }
+.section { margin-bottom: 16px; }
+.divider { border: none; border-top: 1px solid #334155; margin: 16px 0; }
+.cron-hint { font-size: 11px; color: #64748b; margin-top: -8px; margin-bottom: 12px; }
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>自动签到测试面板</h1>
+  <span id="backendStatus" class="status status-ok">后端已连接</span>
+</div>
+
+<div class="container">
+  <!-- 统计卡片 -->
+  <div class="stats">
+    <div class="stat-card stat-total"><div class="stat-num" id="statTotal">0</div><div class="stat-label">总签到次数</div></div>
+    <div class="stat-card stat-success"><div class="stat-num" id="statSuccess">0</div><div class="stat-label">成功</div></div>
+    <div class="stat-card stat-fail"><div class="stat-num" id="statFail">0</div><div class="stat-label">失败</div></div>
+    <div class="stat-card stat-auto"><div class="stat-num" id="statAuto">0</div><div class="stat-label">自动触发</div></div>
+  </div>
+
+  <div class="grid">
+    <!-- 左侧：配置面板 -->
+    <div>
+      <!-- 步骤1：注册/登录 -->
+      <div class="card">
+        <h2>步骤 1：注册 / 登录</h2>
+        <div class="row">
+          <div>
+            <label>用户名</label>
+            <input id="regUser" value="testuser" placeholder="用户名">
+          </div>
+          <div>
+            <label>邮箱</label>
+            <input id="regEmail" value="test@example.com" placeholder="邮箱">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>密码</label>
+            <input id="regPass" type="password" value="test123456" placeholder="密码">
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button class="btn btn-primary" onclick="doRegister()" style="width:100%">注册</button>
+          </div>
+        </div>
+        <hr class="divider">
+        <label>邮箱（登录用）</label>
+        <input id="loginEmail" value="test@example.com" placeholder="邮箱">
+        <label>密码</label>
+        <input id="loginPass" type="password" value="test123456" placeholder="密码">
+        <button class="btn btn-success" onclick="doLogin()" style="width:100%">登录</button>
+        <div id="loginInfo" style="margin-top:8px;font-size:12px;color:#64748b"></div>
+      </div>
+
+      <!-- 步骤2：添加测试网站 -->
+      <div class="card">
+        <h2>步骤 2：添加测试网站</h2>
+        <p style="font-size:12px;color:#64748b;margin-bottom:12px">使用 httpbin.org 模拟 API 签到，登录返回 JSON，签到也返回 JSON</p>
+        <button class="btn btn-primary" onclick="addTestSite()" style="width:100%">添加测试网站（httpbin.org）</button>
+        <div id="siteInfo" style="margin-top:8px;font-size:12px;color:#64748b"></div>
+      </div>
+
+      <!-- 步骤3：添加账号 -->
+      <div class="card">
+        <h2>步骤 3：添加测试账号</h2>
+        <label>用户名</label>
+        <input id="acctUser" value="mytestaccount" placeholder="签到用的用户名">
+        <label>密码</label>
+        <input id="acctPass" value="mypassword123" placeholder="签到用的密码">
+        <button class="btn btn-primary" onclick="addTestAccount()" style="width:100%">添加账号</button>
+        <div id="acctInfo" style="margin-top:8px;font-size:12px;color:#64748b"></div>
+      </div>
+
+      <!-- 步骤4：手动签到 -->
+      <div class="card">
+        <h2>步骤 4：手动签到（无限次）</h2>
+        <p style="font-size:12px;color:#64748b;margin-bottom:12px">点击按钮立即执行一次签到，可无限次点击</p>
+        <button class="btn btn-success" onclick="manualSignin()" id="manualBtn" style="width:100%" disabled>手动签到</button>
+        <div class="btn-group">
+          <button class="btn btn-warning btn-sm" onclick="autoSignin5()" id="auto5Btn" disabled>连续签到 5 次</button>
+          <button class="btn btn-warning btn-sm" onclick="autoSignin10()" id="auto10Btn" disabled>连续签到 10 次</button>
+        </div>
+      </div>
+
+      <!-- 步骤5：自动签到 -->
+      <div class="card">
+        <h2>步骤 5：自动定时签到</h2>
+        <label>Cron 表达式</label>
+        <input id="cronExpr" value="*/1 * * * *" placeholder="*/1 * * * * (每分钟)">
+        <div class="cron-hint">格式：分 时 日 月 星期 | */1 * * * * = 每分钟 | 0 * * * * = 每小时整点</div>
+        <button class="btn btn-primary" onclick="createAutoTask()" id="autoTaskBtn" style="width:100%" disabled>创建自动签到任务</button>
+        <div id="taskInfo" style="margin-top:8px;font-size:12px;color:#64748b"></div>
+        <hr class="divider">
+        <button class="btn btn-danger btn-sm" onclick="deleteAutoTask()" id="delTaskBtn" style="width:100%;display:none">删除自动签到任务</button>
+      </div>
+
+      <!-- 步骤6：查看日志 -->
+      <div class="card">
+        <h2>步骤 6：刷新日志</h2>
+        <button class="btn btn-primary" onclick="fetchLogs()" style="width:100%">刷新签到日志</button>
+        <button class="btn btn-danger btn-sm" onclick="clearLogs()" style="width:100%;margin-top:8px">清空日志</button>
+      </div>
+    </div>
+
+    <!-- 右侧：日志和结果 -->
+    <div>
+      <div class="card">
+        <h2>实时日志输出</h2>
+        <div class="log-area" id="logArea">
+          <div class="log-entry log-info"><span class="log-time">[系统]</span> 测试面板已加载，请按步骤操作</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h2>签到历史记录</h2>
+        <table class="table">
+          <thead>
+            <tr><th>#</th><th>时间</th><th>类型</th><th>状态</th><th>结果</th></tr>
+          </thead>
+          <tbody id="historyTable">
+            <tr><td colspan="5" style="text-align:center;color:#64748b">暂无记录</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h2>调度器状态</h2>
+        <div id="schedulerStatus" style="font-size:13px">检查中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8765';
+let token = '';
+let siteId = null;
+let accountId = null;
+let taskId = null;
+let signinCount = 0;
+let successCount = 0;
+let failCount = 0;
+let autoCount = 0;
+let historyIndex = 0;
+
+function log(msg, type = 'info') {
+  const area = document.getElementById('logArea');
+  const time = new Date().toLocaleTimeString('zh-CN', {hour12:false});
+  const div = document.createElement('div');
+  div.className = 'log-entry log-' + type;
+  div.innerHTML = '<span class="log-time">[' + time + ']</span> ' + msg;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = signinCount;
+  document.getElementById('statSuccess').textContent = successCount;
+  document.getElementById('statFail').textContent = failCount;
+  document.getElementById('statAuto').textContent = autoCount;
+}
+
+function addHistory(type, status, result) {
+  historyIndex++;
+  const tbody = document.getElementById('historyTable');
+  if (historyIndex === 1) tbody.innerHTML = '';
+  const tr = document.createElement('tr');
+  const time = new Date().toLocaleTimeString('zh-CN', {hour12:false});
+  const statusBadge = status === 'success'
+    ? '<span class="badge badge-success">成功</span>'
+    : '<span class="badge badge-fail">失败</span>';
+  const typeBadge = type === 'auto'
+    ? '<span class="badge badge-auto">自动</span>'
+    : '<span class="badge badge-manual">手动</span>';
+  tr.innerHTML = '<td>' + historyIndex + '</td><td>' + time + '</td><td>' + typeBadge + '</td><td>' + statusBadge + '</td><td style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + (result || '-') + '</td>';
+  tbody.insertBefore(tr, tbody.firstChild);
+}
+
+function enableButtons() {
+  document.getElementById('manualBtn').disabled = false;
+  document.getElementById('auto5Btn').disabled = false;
+  document.getElementById('auto10Btn').disabled = false;
+  document.getElementById('autoTaskBtn').disabled = false;
+}
+
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch(API + path, opts);
+  return await res.json();
+}
+
+async function doRegister() {
+  try {
+    const u = document.getElementById('regUser').value;
+    const e = document.getElementById('regEmail').value;
+    const p = document.getElementById('regPass').value;
+    log('注册用户: ' + u + ' (' + e + ')...', 'info');
+    const r = await api('POST', '/api/auth/register', { username: u, email: e, password: p });
+    if (r.id) { log('注册成功! user_id=' + r.id, 'success'); }
+    else { log('注册结果: ' + JSON.stringify(r), 'warn'); }
+  } catch(e) { log('注册失败: ' + e.message, 'fail'); }
+}
+
+async function doLogin() {
+  try {
+    const e = document.getElementById('loginEmail').value;
+    const p = document.getElementById('loginPass').value;
+    log('登录: ' + e + '...', 'info');
+    const r = await api('POST', '/api/auth/login', { email: e, password: p });
+    if (r.access_token) {
+      token = r.access_token;
+      document.getElementById('loginInfo').innerHTML = '<span style="color:#34d399">已登录</span> token=' + token.substring(0, 30) + '...';
+      log('登录成功!', 'success');
+      enableButtons();
+      checkScheduler();
+    } else {
+      log('登录失败: ' + JSON.stringify(r), 'fail');
+    }
+  } catch(e) { log('登录失败: ' + e.message, 'fail'); }
+}
+
+async function addTestSite() {
+  try {
+    log('添加测试网站 (httpbin.org)...', 'info');
+    const r = await api('POST', '/api/sites', {
+      name: 'HTTPBin测试站',
+      display_name: '签到测试',
+      category: '测试',
+      type: 'custom-api',
+      url: 'https://httpbin.org',
+      api_config: {
+        login_url: 'https://httpbin.org/post',
+        login_method: 'POST',
+        login_body_template: '{"user": "{{username}}", "pass": "{{password}}"}',
+        login_content_type: 'application/json',
+        token_path: 'json.user',
+        signin_url: 'https://httpbin.org/post',
+        signin_method: 'POST',
+        signin_body: '{"action": "signin", "user": "{{username}}"}',
+        signin_content_type: 'application/json',
+        auth_header_name: 'X-Auth-Token',
+        auth_header_template: 'Bearer {{token}}',
+        success_field: '',
+        message_field: '',
+        verify_ssl: true
+      }
+    });
+    if (r.id) {
+      siteId = r.id;
+      document.getElementById('siteInfo').innerHTML = '<span style="color:#34d399">网站已添加</span> id=' + r.id;
+      log('网站添加成功! id=' + r.id, 'success');
+    } else {
+      log('添加失败: ' + JSON.stringify(r), 'fail');
+    }
+  } catch(e) { log('添加网站失败: ' + e.message, 'fail'); }
+}
+
+async function addTestAccount() {
+  if (!siteId) { log('请先添加网站!', 'warn'); return; }
+  try {
+    const u = document.getElementById('acctUser').value;
+    const p = document.getElementById('acctPass').value;
+    log('添加账号: ' + u + '...', 'info');
+    const r = await api('POST', '/api/accounts', { site_id: siteId, username: u, password: p });
+    if (r.id) {
+      accountId = r.id;
+      document.getElementById('acctInfo').innerHTML = '<span style="color:#34d399">账号已添加</span> id=' + r.id;
+      log('账号添加成功! id=' + r.id, 'success');
+    } else {
+      log('添加失败: ' + JSON.stringify(r), 'fail');
+    }
+  } catch(e) { log('添加账号失败: ' + e.message, 'fail'); }
+}
+
+async function manualSignin() {
+  if (!siteId || !accountId) { log('请先添加网站和账号!', 'warn'); return; }
+  log('手动签到执行中...', 'info');
+  try {
+    const r = await api('POST', '/api/sites/' + siteId + '/signin', { account_id: accountId });
+    signinCount++;
+    if (r.success) {
+      successCount++;
+      log('手动签到成功! ' + (r.message || ''), 'success');
+      addHistory('manual', 'success', r.message || JSON.stringify(r));
+    } else {
+      failCount++;
+      log('手动签到失败: ' + (r.error || r.message || JSON.stringify(r)), 'fail');
+      addHistory('manual', 'fail', r.error || r.message || JSON.stringify(r));
+    }
+    updateStats();
+  } catch(e) {
+    failCount++;
+    signinCount++;
+    log('手动签到异常: ' + e.message, 'fail');
+    addHistory('manual', 'fail', e.message);
+    updateStats();
+  }
+}
+
+async function autoSigninN(n) {
+  log('开始连续签到 ' + n + ' 次...', 'warn');
+  for (let i = 0; i < n; i++) {
+    await manualSignin();
+    if (i < n - 1) await new Promise(r => setTimeout(r, 500));
+  }
+  log('连续签到 ' + n + ' 次完成!', 'success');
+}
+function autoSignin5() { autoSigninN(5); }
+function autoSignin10() { autoSigninN(10); }
+
+async function createAutoTask() {
+  if (!accountId) { log('请先添加账号!', 'warn'); return; }
+  try {
+    const cron = document.getElementById('cronExpr').value;
+    log('创建自动签到任务 (cron: ' + cron + ')...', 'info');
+    const r = await api('POST', '/api/tasks', { account_id: accountId, cron: cron, status: 'enabled' });
+    if (r.id) {
+      taskId = r.id;
+      document.getElementById('taskInfo').innerHTML = '<span style="color:#34d399">任务已创建</span> id=' + r.id + ' cron=' + r.cron;
+      document.getElementById('delTaskBtn').style.display = 'block';
+      log('自动签到任务创建成功! id=' + r.id + ' cron=' + r.cron, 'success');
+      log('等待调度器触发... (后端日志会显示 [scheduler] 开始执行任务)', 'info');
+    } else {
+      log('创建失败: ' + JSON.stringify(r), 'fail');
+    }
+  } catch(e) { log('创建任务失败: ' + e.message, 'fail'); }
+}
+
+async function deleteAutoTask() {
+  if (!taskId) return;
+  try {
+    await api('DELETE', '/api/tasks/' + taskId);
+    log('自动签到任务已删除', 'warn');
+    document.getElementById('taskInfo').innerHTML = '';
+    document.getElementById('delTaskBtn').style.display = 'none';
+    taskId = null;
+  } catch(e) { log('删除失败: ' + e.message, 'fail'); }
+}
+
+async function fetchLogs() {
+  try {
+    const logs = await api('GET', '/api/logs');
+    if (Array.isArray(logs) && logs.length > 0) {
+      log('获取到 ' + logs.length + ' 条日志记录', 'info');
+      logs.forEach(l => {
+        const status = l.status === 'success' ? 'success' : 'fail';
+        const type = 'auto';
+        signinCount++;
+        if (l.status === 'success') successCount++; else failCount++;
+        autoCount++;
+        addHistory(type, l.status, l.result);
+      });
+      updateStats();
+    } else {
+      log('暂无日志记录', 'info');
+    }
+  } catch(e) { log('获取日志失败: ' + e.message, 'fail'); }
+}
+
+async function clearLogs() {
+  try {
+    await api('DELETE', '/api/logs');
+    log('日志已清空', 'warn');
+    signinCount = 0; successCount = 0; failCount = 0; autoCount = 0; historyIndex = 0;
+    updateStats();
+    document.getElementById('historyTable').innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b">暂无记录</td></tr>';
+  } catch(e) { log('清空失败: ' + e.message, 'fail'); }
+}
+
+async function checkScheduler() {
+  try {
+    const r = await api('GET', '/api/health');
+    const el = document.getElementById('schedulerStatus');
+    if (r.scheduler === 'running') {
+      el.innerHTML = '<span style="color:#34d399">&#10003;</span> 调度器运行中 | <span style="color:#38bdf8">&#10003;</span> 自动签到已启用';
+    } else {
+      el.innerHTML = '<span style="color:#fca5a5">&#10007;</span> 调度器未运行!';
+    }
+  } catch(e) {
+    document.getElementById('schedulerStatus').innerHTML = '<span style="color:#fca5a5">无法连接后端</span>';
+  }
+}
+
+// 定时轮询后端日志（检查自动签到是否触发）
+let pollInterval = null;
+function startPolling() {
+  pollInterval = setInterval(async () => {
+    if (!token) return;
+    try {
+      const logs = await api('GET', '/api/logs?limit=3');
+      if (Array.isArray(logs) && logs.length > 0) {
+        const latest = logs[0];
+        const el = document.getElementById('schedulerStatus');
+        el.innerHTML = '<span style="color:#34d399">&#10003;</span> 调度器运行中 | 最新日志: <span style="color:#94a3b8">' + latest.created_at + '</span> <span class="badge badge-' + (latest.status === 'success' ? 'success' : 'fail') + '">' + latest.status + '</span>';
+      }
+    } catch(e) {}
+  }, 5000);
+}
+startPolling();
+</script>
+</body>
+</html>
